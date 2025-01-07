@@ -1,0 +1,169 @@
+openapi: "3.0.1"
+
+info:
+  title: "Case Management API"
+  description: "API for managing business cases"
+  version: "1.0.0"
+
+servers:
+- url: "https://00lpxswcbc.execute-api.us-east-1.amazonaws.com/Prod"
+
+paths:
+  /cases:
+    get:
+      operationId: GetCases
+      description: "Retrieves a list of cases with optional filtering and pagination. Returns case details including status, creation date, and other relevant information."
+      parameters:
+        - name: "status"
+          in: "query"
+          required: false
+          description: "Filter cases by their current status"
+          schema:
+            type: "string"
+            enum: ["Open", "Closed", "In Progress"]
+        - name: "limit"
+          in: "query"
+          description: "Maximum number of cases to return"
+          schema:
+            type: "integer"
+            default: 10
+        - name: "page"
+          in: "query"
+          description: "Page number for pagination"
+          schema:
+            type: "integer"
+            default: 1
+      responses:
+        "200":
+          description: "Successfully retrieved cases"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Cases"
+        "400":
+          description: "Bad request"
+        "401":
+          description: "Unauthorized"
+      x-amazon-apigateway-integration:
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:571724487590:function:q-business-plugins-api-CaseManagementFunction-2qECTGZkwKwh/invocations"
+        passthroughBehavior: "when_no_match"
+        type: "aws_proxy"
+
+    post:
+      operationId: CreateCase
+      description: "Creates a new case in the system with the provided details. Returns the created case information including the assigned case ID."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CaseRequest"
+      responses:
+        "201":
+          description: "Case created successfully"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Case"
+        "400":
+          description: "Bad request"
+        "401":
+          description: "Unauthorized"
+      x-amazon-apigateway-integration:
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:571724487590:function:q-business-plugins-api-CaseManagementFunction-2qECTGZkwKwh/invocations"
+        passthroughBehavior: "when_no_match"
+        type: "aws_proxy"
+
+  /cases/{caseId}:
+    get:
+      operationId: GetCaseById
+      description: "Retrieve a specific case by ID"
+      parameters:
+      - name: "caseId"
+        in: "path"
+        required: true
+        description: "Unique identifier of the case"
+        schema:
+          type: "string"
+      responses:
+        "200":
+          description: "Successfully retrieved case"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Case"
+        "404":
+          description: "Case not found"
+        "401":
+          description: "Unauthorized"
+      x-amazon-apigateway-integration:
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:571724487590:function:q-business-plugins-api-CaseManagementFunction-2qECTGZkwKwh/invocations"
+        passthroughBehavior: "when_no_match"
+        type: "aws_proxy"
+
+components:
+  schemas:
+    Case:
+      type: "object"
+      properties:
+        caseId:
+          type: "string"
+          description: "Unique identifier for the case"
+        title:
+          type: "string"
+          description: "Case title"
+        status:
+          type: "string"
+          enum: ["Open", "Closed", "In Progress"]
+        createdAt:
+          type: "string"
+          format: "date-time"
+        updatedAt:
+          type: "string"
+          format: "date-time"
+        description:
+          type: "string"
+          maxLength: 1000
+
+    CaseRequest:
+      type: "object"
+      required:
+        - "title"
+        - "description"
+      properties:
+        title:
+          type: "string"
+          description: "Case title"
+        description:
+          type: "string"
+          maxLength: 1000
+          description: "Case description"
+
+    Cases:
+      type: "object"
+      properties:
+        items:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/Case"
+        pagination:
+          type: "object"
+          properties:
+            totalItems:
+              type: "integer"
+            currentPage:
+              type: "integer"
+            totalPages:
+              type: "integer"
+
+  securitySchemes:
+    ApiKeyAuth:
+      type: "apiKey"
+      name: "x-api-key"
+      in: "header"
+
+security:
+  - ApiKeyAuth: []

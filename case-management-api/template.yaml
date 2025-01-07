@@ -1,0 +1,114 @@
+AWSTemplateFormatVersion: 2010-09-09
+Transform: AWS::Serverless-2016-10-31
+
+Description: >
+  SAM template for Case Management API for Amazon Q custom plugins
+
+Parameters:
+  Stage:
+    Type: String
+    Default: dev
+    Description: API Gateway stage name
+
+Resources:
+  CaseManagementFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: api/cases.lambda_handler
+      Runtime: python3.9
+      Architectures:
+        - x86_64
+      Environment:
+        Variables:
+          CASES_TABLE: !Ref CasesTable
+          UPLOAD_BUCKET_NAME: !Ref CaseFilesBucket
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref CasesTable
+        - S3CrudPolicy:
+            BucketName: !Ref CaseFilesBucket
+      Events:
+        CreateCase:
+          Type: Api
+          Properties:
+            Path: /cases
+            Method: POST
+        GetCase:
+          Type: Api
+          Properties:
+            Path: /cases/{caseId}
+            Method: GET
+        ListCases:
+          Type: Api
+          Properties:
+            Path: /cases
+            Method: GET
+        GetUploadUrl:
+          Type: Api
+          Properties:
+            Path: /cases/{caseId}/upload
+            Method: GET
+
+  CasesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: caseId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: caseId
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+
+  CaseFilesBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub ${AWS::StackName}-case-files-${Stage}-${AWS::AccountId}
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders:
+              - '*'
+            AllowedMethods:
+              - PUT
+              - GET
+              - HEAD
+            AllowedOrigins:
+              - '*'
+            MaxAge: 3600
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpireOldFiles
+            Status: Enabled
+            ExpirationInDays: 90  # Adjust retention period as needed
+
+  CaseFilesBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref CaseFilesBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: SecureTransport
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:*'
+            Resource:
+              - !Sub ${CaseFilesBucket.Arn}/*
+              - !GetAtt CaseFilesBucket.Arn
+            Condition:
+              Bool:
+                aws:SecureTransport: false
+      
+Outputs:
+  CaseManagementApi:
+    Description: "API Gateway endpoint URL"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/${Stage}/cases"
+  CaseFilesBucketName:
+    Description: "S3 bucket for case files"
+    Value: !Ref CaseFilesBucket

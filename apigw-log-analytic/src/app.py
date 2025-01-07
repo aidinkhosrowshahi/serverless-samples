@@ -17,6 +17,23 @@ customer_mapping = {}
 # Get all the APIGW Usage Plans for this account
 # TODO: Paginate results for >25 plans
 account_usage_plans = apigw.get_usage_plans()
+try:
+    account_usage_plans = apigw.get_usage_plans()
+except apigw.exceptions.AccessDeniedException:
+    logger.error("Access denied - check IAM permissions for API Gateway")
+    raise
+except apigw.exceptions.TooManyRequestsException:
+    logger.error("API request throttled - implement backoff retry logic")
+    raise
+except apigw.exceptions.InvalidParameterValueException:
+    logger.error("Invalid parameters provided to get_usage_plans")
+    raise
+except Exception as e:
+    logger.error(f"Unexpected error retrieving usage plans: {str(e)}")
+    raise
+else:
+    # Optional: Log success or process the results
+    logger.info(f"Successfully retrieved {len(account_usage_plans)} usage plans")
 
 #print(account_usage_plans)
 
