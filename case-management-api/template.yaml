@@ -87,6 +87,31 @@ Resources:
             Status: Enabled
             ExpirationInDays: 90  # Adjust retention period as needed
 
+  S3MetadataProcessorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler:  api/s3processor.lambda_handler
+      Runtime: python3.9
+      Architectures:
+        - x86_64
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref CaseFilesBucket
+      Events:
+        S3ObjectCreated:
+          Type: EventBridgeRule
+          Properties:
+            Pattern:
+              source:
+                - aws.s3
+              detail-type:
+                - Object Created
+              detail:
+                bucket:
+                  name:
+                    - !Ref CaseFilesBucket
+
   CaseFilesBucketPolicy:
     Type: AWS::S3::BucketPolicy
     Properties:
